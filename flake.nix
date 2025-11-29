@@ -3,44 +3,46 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
-    flake-utils.url = "github:numtide/flake-utils";
     rpi-helper.url = "github:nvmd/nixos-raspberrypi/main";
-    # (Optionally pin a revision of rpi-helper if you want stability)
-    # rpi-helper.rev = "...";
+    flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils, rpi-helper, ... }:
+  outputs = { self, nixpkgs, rpi-helper, flake-utils, ... }:
   let
     system = "aarch64-linux";
     pkgs = import nixpkgs { inherit system; };
+    # Optional: you can use the vendor kernel from rpi-helper instead; keeping your pin for now.
     kernel = pkgs.linuxPackages_6_1;
   in {
-    nixosConfigurations = {
-      rpi-wyoming = rpi-helper.lib.nixosSystem {
-        inherit pkgs system;
-        modules = [
-          ({ config, pkgs, ... }: {
-            # Pin kernel
-            boot.kernelPackages = kernel;
+    nixosConfigurations.rpi-wyoming = rpi-helper.lib.nixosSystem {
+      inherit pkgs system;
+      # Pass required specialArgs so rpi-helper asserts succeed
+      specialArgs = {
+        nixos-raspberrypi = rpi-helper;
+        # (Include alternative spelling just in case future helpers expect it)
+        nixos-raspberry-pi = rpi-helper;
+      };
+      modules = [
+        # Base Raspberry Pi 4 hardware setup from helper
+        rpi-helper.nixosModules.raspberry-pi-4.base
 
-            # Enable device-tree + overlays for Pi
-            hardware.deviceTree.enable = true;
-            hardware.deviceTree.filter = "bcm2711-rpi-*.dtb";
-            hardware.raspberry-pi."4".i2c1.enable = true;
-            # If you have I2S/I2C/other overlays, you can add more here.
+        # SD image generation module (provides system.build.sdImage)
+        rpi-helper.nixosModules.sd-image
 
-            # Example: disable on-board audio if you prefer, might help avoid conflicts
-            # boot.loader.raspberryPi.dtParams = {
-            #   audio = "off";
-            # };
+        ({ config, pkgs, lib, ... }: {
+          # Pin kernel (remove if you prefer rpi-helper's provided kernel bundle)
+          boot.kernelPackages = kernel;
 
-            # User and audio groups
-            users.users.pi = {
-              isNormalUser = true;
-              extraGroups = [ "audio" "video" ];
-            };
+          # Optional extra device tree tweaks (rpi-helper modules already handle most)
+          hardware.deviceTree.enable = true;
+          hardware.deviceTree.filter = "bcm2711-rpi-*.dtb";
+          hardware.raspberry-pi."4".i2c1.enable = true;
 
-            # WYOMING services
+          users.users.pi = {
+            isNormalUser = true;
+            extraGroups = [ "audio" "video" ];
+          };
+
             services.wyoming = {
               satellite = {
                 enable = true;
@@ -105,10 +107,9 @@
               };
             };
 
-            environment.systemPackages = with pkgs; [ ];
-          })
-        ];
-      };
+          environment.systemPackages = with pkgs; [ ];
+        })
+      ];
     };
   };
 }
