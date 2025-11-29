@@ -2,19 +2,15 @@
   description = "NixOS Pi4 with Wyoming + pinned kernel + Pi overlay";
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
-    flake-utils.url = "github:numtide/flake-utils";
     rpi-helper.url = "github:nvmd/nixos-raspberrypi/main";
     # (Optionally pin a revision of rpi-helper if you want stability)
     # rpi-helper.rev = "...";
   };
 
-  outputs = { self, nixpkgs, flake-utils, rpi-helper, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
-    # Only build for aarch64-linux (Pi4) — skip other systems
-    if system != "aarch64-linux" then {} else
+  outputs = { self, nixpkgs, rpi-helper, ... }:
     let
+      system = "aarch64-linux";
       pkgs = import nixpkgs { inherit system; };
-
       # choose a fixed kernel version
       kernel = pkgs.linuxPackages_6_1;
     in {
@@ -112,5 +108,5 @@
           })
         ];
       };
-    })
+    };
 }
