@@ -1,5 +1,6 @@
 {
   description = "NixOS Pi4 with Wyoming + pinned kernel + Pi overlay";
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
     flake-utils.url = "github:numtide/flake-utils";
@@ -9,16 +10,13 @@
   };
 
   outputs = { self, nixpkgs, flake-utils, rpi-helper, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
-    # Only build for aarch64-linux (Pi4) — skip other systems
-    if system != "aarch64-linux" then {} else
-    let
-      pkgs = import nixpkgs { inherit system; };
-
-      # choose a fixed kernel version
-      kernel = pkgs.linuxPackages_6_1;
-    in {
-      nixosConfigurations.rpi-wyoming = rpi-helper.lib.nixosSystem {
+  let
+    system = "aarch64-linux";
+    pkgs = import nixpkgs { inherit system; };
+    kernel = pkgs.linuxPackages_6_1;
+  in {
+    nixosConfigurations = {
+      rpi-wyoming = rpi-helper.lib.nixosSystem {
         inherit pkgs system;
         modules = [
           ({ config, pkgs, ... }: {
@@ -42,7 +40,7 @@
               extraGroups = [ "audio" "video" ];
             };
 
-            # WYOMING services (as previous)
+            # WYOMING services
             services.wyoming = {
               satellite = {
                 enable = true;
@@ -107,10 +105,10 @@
               };
             };
 
-            # systemPackages, extra config, etc.
             environment.systemPackages = with pkgs; [ ];
           })
         ];
       };
-    })
+    };
+  };
 }
